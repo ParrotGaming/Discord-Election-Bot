@@ -1,3 +1,5 @@
+#Das ist für dich, Nick
+
 import os
 from dotenv import load_dotenv
 import discord
