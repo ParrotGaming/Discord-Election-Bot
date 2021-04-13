@@ -7,7 +7,11 @@ from discord.ext import commands
 from discord.ext.commands import has_permissions, MissingPermissions
 from db_interact import *
 load_dotenv()
-token = os.getenv('TOKEN')
+token = ""
+if os.getenv('ENVIRONMENT') == "development":
+    token = os.getenv('DEVELOPMENT_TOKEN')
+elif os.getenv('ENVIRONMENT') == "production":
+    token = os.getenv('PRODUCTION_TOKEN')
 prefix = "!vote "
 client = commands.Bot(command_prefix = prefix)
 
