@@ -24,7 +24,7 @@ def dbInit():
   cursor.execute("SELECT to_regclass('public.candidates')")
   result = cursor.fetchone()
   if result[0] == None:
-    cursor.execute("CREATE TABLE candidates (user_id TEXT PRIMARY KEY, name TEXT, title TEXT, votes INT)")
+    cursor.execute("CREATE TABLE candidates (user_id TEXT PRIMARY KEY, name TEXT, title TEXT, votes INT, url TEXT)")
     conn.commit()
 
   cursor.execute("SELECT to_regclass('public.voters')")
@@ -36,7 +36,7 @@ def dbInit():
   cursor.close()
   conn.close()
 
-def addCandidate(user_uuid, name, gc_name):
+def addCandidate(user_uuid, name, gc_name, url):
     print("\n\n",user_uuid, name, gc_name)
     dbInit()
     print("Init Done")
@@ -50,7 +50,7 @@ def addCandidate(user_uuid, name, gc_name):
     )
     cursor = conn.cursor()
 
-    cursor.execute("INSERT INTO candidates VALUES (%s, %s, %s, 0); ",(str(user_uuid),str(name),str(gc_name),))
+    cursor.execute("INSERT INTO candidates VALUES (%s, %s, %s, 0, %s); ",(str(user_uuid),str(name),str(gc_name),str(url)))
     conn.commit()
 
     cursor.close()
@@ -82,11 +82,12 @@ def removeCandidate(user_uuid):
 
 def listCandidates():
     dbInit()
-    options = ""
+    options = []
     index = 0
     names = []
     titles = []
     user_ids = []
+    urls = []
     conn = psycopg2.connect(
       dbname=dbname,
       user=user,
@@ -114,12 +115,18 @@ def listCandidates():
     for result in results:
       user_ids.append(result[0])
 
+    cursor.execute("SELECT url FROM candidates;")
+    results = cursor.fetchall()
+    
+    for result in results:
+      urls.append(result[0])
+
     for i in range(len(names)):
-      options += titles[i] + " (" + names[i] + ") " + "(" + user_ids[i] + ")" + "\n\n"
+      options.append(titles[i] + " (" + names[i] + ") " + "(" + user_ids[i] + ")")
 
     cursor.close()
     conn.close()
-    return options
+    return options, urls
 
 def vote(author_id,candidate_id):
   dbInit()
