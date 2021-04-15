@@ -10,9 +10,12 @@ from graph_functions import createCandidateGraph
 load_dotenv()
 
 token = ""
+environment = ""
 if os.getenv('ENVIRONMENT') == "development":
+    environment = "development"
     token = os.getenv('DEVELOPMENT_TOKEN')
 elif os.getenv('ENVIRONMENT') == "production":
+    environment = "production"
     token = os.getenv('PRODUCTION_TOKEN')
 
 prefix = "!vote "
@@ -26,20 +29,42 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("Online, Current Latency is " + str(round(client.latency * 1000)) + "ms")
 
-@client.command()
-async def candidates(ctx):
+async def update_candidates():
     createCandidateGraph()
     if listCandidates() != "":
-        await ctx.message.author.send(listCandidates())
-        await ctx.message.author.send(file=discord.File('output.png'))
+        channel = ""
+        if environment == "development":
+            channel = client.get_channel(832327717970116679)
+        elif environment == "production":
+            channel = client.get_channel(832337414772621363)
+            
+
+        number = 100
+        counter = 0
+        async for x in channel.history(limit = number):
+            if counter < number:
+                await x.delete()
+                counter += 1
+
+        # await ctx.message.author.send(listCandidates())
+
+        candidates = listCandidates()
+        await channel.send("Current Candidates:")
+        for i in range(len(candidates[0])):
+            await channel.send(candidates[0][i])
+            await channel.send(candidates[1][i])
+            await channel.send("=============================")
+        await channel.send("**\n\n**Current Vote Breakdown:")
+        await channel.send(file=discord.File('output.png'))
     else:
-        await ctx.message.author.send("No candidates found")
+        await channel.send("No candidates found")
 
 @client.command()
 async def cast(ctx, member: discord.Member = None):
     if member != None:
         try:
             if vote(ctx.message.author, member):
+                await update_candidates()
                 await ctx.send("Vote Cast")
             else:
                 await ctx.send("You Have Already Voted")
@@ -70,7 +95,12 @@ async def add(ctx, member: discord.Member = None, name = None, *args):
     if member != None:
         try:
             gc_name = " ".join(args[:])
-            addCandidate(member, name, gc_name)
+            if ctx.message.attachments:
+                image = ctx.message.attachments[0].url
+                addCandidate(member, name, gc_name, image)
+            else:
+                await ctx.send("You must attach an image to this message")
+                return False
         except Exception as e:
             print(e)
     else:
