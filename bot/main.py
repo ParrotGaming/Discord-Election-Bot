@@ -6,8 +6,15 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import has_permissions, MissingPermissions
 from db_interact import *
+from graph_functions import createCandidateGraph
 load_dotenv()
-token = os.getenv('TOKEN')
+
+token = ""
+if os.getenv('ENVIRONMENT') == "development":
+    token = os.getenv('DEVELOPMENT_TOKEN')
+elif os.getenv('ENVIRONMENT') == "production":
+    token = os.getenv('PRODUCTION_TOKEN')
+
 prefix = "!vote "
 client = commands.Bot(command_prefix = prefix)
 
@@ -21,7 +28,12 @@ async def ping(ctx):
 
 @client.command()
 async def candidates(ctx):
-    await ctx.send(listCandidates())
+    createCandidateGraph()
+    if listCandidates() != "":
+        await ctx.message.author.send(listCandidates())
+        await ctx.message.author.send(file=discord.File('output.png'))
+    else:
+        await ctx.message.author.send("No candidates found")
 
 @client.command()
 async def cast(ctx, member: discord.Member = None):
