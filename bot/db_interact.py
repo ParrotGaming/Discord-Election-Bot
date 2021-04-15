@@ -169,7 +169,7 @@ def reset_db():
 
 def end_election():
   runoff_candidates = []
-  runoff_candidatesS = "Runoff Candidates:\n"
+  runoff_candidatesS = ""
   index = 0
   first = 0
   second = 0
@@ -185,6 +185,9 @@ def end_election():
   cursor = conn.cursor()
   cursor.execute("SELECT * FROM candidates ORDER BY votes DESC;")
   results = cursor.fetchall()
+
+  if results[0] != None:
+    runoff_candidatesS += "Runoff Candidates:\n\n"
 
   if len(results) <= 2:
     return(results[0][1] + " has won the election")
@@ -219,3 +222,25 @@ def end_election():
 
   cursor.close()
   conn.close()
+
+def getGraphData():
+  dbInit()
+
+  conn = psycopg2.connect(
+    dbname=dbname,
+    user=user,
+    password=dbpassword,
+    host=host,
+    port=port
+  )
+  cursor = conn.cursor()
+
+  cursor.execute("SELECT * FROM candidates ORDER BY votes DESC;")
+  results = cursor.fetchall()
+
+  cursor.close()
+  conn.close()
+  if results != None:
+    return results
+  else:
+    return False
