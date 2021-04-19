@@ -77,8 +77,7 @@ async def nordic(ctx):
         await x.delete()
     await client.get_channel(832375391401279488).send(get_random_unicode(2000))
 
-async def update_candidates():
-    createCandidateGraph()
+async def update_candidates(add_override):
     if listCandidates() != "":
         channel = ""
         if environment == "development":
@@ -86,26 +85,44 @@ async def update_candidates():
         elif environment == "production":
             channel = client.get_channel(832337414772621363)
             
-
-        number = 100
         counter = 0
-        async for x in channel.history(limit = number):
-            if counter < number:
-                await x.delete()
-                counter += 1
-                asyncio.sleep(0.5)
+        msg_count = 0
+        async for x in channel.history(limit = 100):
+            msg_count += 1
 
-        # await ctx.message.author.send(listCandidates())
+        print("Message Count: " + str(msg_count))
+        if msg_count != 0 and add_override == False:
+            async for x in channel.history(limit = 1):
+                if counter < 100:
+                    await x.delete()
+                    counter += 1
+                    await asyncio.sleep(0.5)
+            
+            createCandidateGraph()
+            await channel.send(file=discord.File('output.png'))
+        else:
+            async for x in channel.history(limit = 100):
+                if counter < 100:
+                    await x.delete()
+                    counter += 1
+                    await asyncio.sleep(0.5)
 
-        candidates = listCandidates()
-        await channel.send("Current Candidates:")
-        for i in range(len(candidates[0])):
-            await channel.send(candidates[0][i])
-            await channel.send(candidates[1][i])
-            await channel.send("=============================")
-        await channel.send("**\n\n**Current Vote Breakdown:")
-        await channel.send(file=discord.File('output.png'))
+            candidates = listCandidates()
+            await channel.send("Current Candidates:")
+            for i in range(len(candidates[0])):
+                await channel.send(candidates[0][i])
+                await channel.send(candidates[1][i])
+                await channel.send("=============================")
+            await channel.send("**\n\n**Current Vote Breakdown:")
+            createCandidateGraph()
+            await channel.send(file=discord.File('output.png'))
     else:
+        channel = ""
+        if environment == "development":
+            channel = client.get_channel(832327717970116679)
+        elif environment == "production":
+            channel = client.get_channel(832337414772621363)
+
         await channel.send("No candidates found")
 
 @client.command()
@@ -113,7 +130,7 @@ async def cast(ctx, member: discord.Member = None):
     if member != None:
         try:
             if vote(ctx.message.author, member):
-                await update_candidates()
+                await update_candidates(add_override = False)
                 await ctx.send("Vote Cast")
             else:
                 await ctx.send("You Have Already Voted")
@@ -128,6 +145,17 @@ async def cast(ctx, member: discord.Member = None):
 async def reset(ctx):
     try:
         reset_db()
+        channel = ""
+        if environment == "development":
+            channel = client.get_channel(832327717970116679)
+        elif environment == "production":
+            channel = client.get_channel(832337414772621363)
+        counter = 0
+        async for x in channel.history(limit = 100):
+            if counter < 100:
+                await x.delete()
+                counter += 1
+                await asyncio.sleep(0.5)
     except Exception as e:
         print(e)
     await ctx.send("Election Reset")
@@ -147,6 +175,7 @@ async def add(ctx, member: discord.Member = None, name = None, *args):
             if ctx.message.attachments:
                 image = ctx.message.attachments[0].url
                 addCandidate(member, name, gc_name, image)
+                await update_candidates(add_override = True)
             else:
                 await ctx.send("You must attach an image to this message")
                 return False
@@ -169,6 +198,7 @@ async def remove(ctx, member: discord.Member = None):
     if member != None:
         try:
             removeCandidate(member)
+            await update_candidates(add_override = True)
         except Exception as e:
             print(e)
     else:
@@ -187,6 +217,7 @@ async def remove_error(ctx, error):
 async def call(ctx):
     try:
         await ctx.send(end_election())
+        await update_candidates(add_override = True)
     except Exception as e:
         print(e)
 
