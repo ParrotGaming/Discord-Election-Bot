@@ -27,6 +27,12 @@ def dbInit():
     cursor.execute("CREATE TABLE candidates (user_id TEXT PRIMARY KEY, name TEXT, title TEXT, votes INT, url TEXT)")
     conn.commit()
 
+  cursor.execute("SELECT to_regclass('public.statuses')")
+  result = cursor.fetchone()
+  if result[0] == None:
+    cursor.execute("CREATE TABLE statuses (name TEXT PRIMARY KEY)")
+    conn.commit()
+  
   cursor.execute("SELECT to_regclass('public.voters')")
   result = cursor.fetchone()
   if result[0] == None:
@@ -251,3 +257,23 @@ def getGraphData():
     return results
   else:
     return False
+
+def get_statuses():
+  dbInit()
+
+  conn = psycopg2.connect(
+    dbname=dbname,
+    user=user,
+    password=dbpassword,
+    host=host,
+    port=port
+  )
+
+  cursor = conn.cursor()
+
+  cursor.execute("SELECT * FROM statuses;")
+  results = cursor.fetchall()
+  return results
+
+  cursor.close()
+  conn.close()

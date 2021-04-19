@@ -53,18 +53,18 @@ def get_random_unicode(length):
     ]
     return ''.join(random.choice(alphabet) for i in range(length))
 
-names=["Louie the chosen one", "snilf", "with toes", "Pioneer Sanchez", "Minceraft"]
+names= get_statuses()
 
 @client.event
 async def on_ready():
     from random import randrange
-    await client.change_presence(status=discord.Status.online, activity=discord.Game(names[randrange(len(names))]))
+    await client.change_presence(status=discord.Status.online, activity=discord.Game(names[randrange(len(names))][0]))
     print('Logged on as', client.user)
 
 @client.command()
 async def name(ctx):
     from random import randrange
-    await client.change_presence(status=discord.Status.online, activity=discord.Game(names[randrange(len(names))]))
+    await client.change_presence(status=discord.Status.online, activity=discord.Game(names[randrange(len(names))][0]))
 
 @client.command()
 async def ping(ctx):
