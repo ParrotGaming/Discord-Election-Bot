@@ -132,18 +132,21 @@ async def update_candidates(add_override):
 
 @client.command()
 async def cast(ctx, member: discord.Member = None):
+    global cmd_running
     if member != None:
         if cmd_running == False:
             try:
                 if vote(ctx.message.author, member):
+                    cmd_running = True
                     await update_candidates(add_override = False)
                     await ctx.send("Vote Cast")
+                    cmd_running = False
                 else:
                     await ctx.send("You Have Already Voted")
             except Exception as e:
                 print(e)
         else:
-            await ctx.send("Wait")
+            await ctx.send("Please wait for the bot to finish it's current task")
     else:
         await ctx.send("You must tag a user or enter their full id to vote for them")
         return False
