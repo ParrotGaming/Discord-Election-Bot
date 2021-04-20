@@ -10,6 +10,8 @@ from db_interact import *
 from graph_functions import createCandidateGraph
 load_dotenv()
 
+cmd_running = False
+
 token = ""
 environment = ""
 if os.getenv('ENVIRONMENT') == "development":
@@ -78,6 +80,7 @@ async def nordic(ctx):
     await client.get_channel(832375391401279488).send(get_random_unicode(2000))
 
 async def update_candidates(add_override):
+    global cmd_running
     if listCandidates() != "":
         channel = ""
         if environment == "development":
@@ -102,6 +105,7 @@ async def update_candidates(add_override):
             await channel.send(file=discord.File('output.png'))
         else:
             async for x in channel.history(limit = 100):
+                cmd_running = True
                 if counter < 100:
                     await x.delete()
                     counter += 1
@@ -116,6 +120,7 @@ async def update_candidates(add_override):
             await channel.send("**\n\n**Current Vote Breakdown:")
             createCandidateGraph()
             await channel.send(file=discord.File('output.png'))
+            cmd_running = False
     else:
         channel = ""
         if environment == "development":
@@ -127,15 +132,21 @@ async def update_candidates(add_override):
 
 @client.command()
 async def cast(ctx, member: discord.Member = None):
+    global cmd_running
     if member != None:
-        try:
-            if vote(ctx.message.author, member):
-                await update_candidates(add_override = False)
-                await ctx.send("Vote Cast")
-            else:
-                await ctx.send("You Have Already Voted")
-        except Exception as e:
-            print(e)
+        if cmd_running == False:
+            try:
+                if vote(ctx.message.author, member):
+                    cmd_running = True
+                    await update_candidates(add_override = False)
+                    await ctx.send("Vote Cast")
+                    cmd_running = False
+                else:
+                    await ctx.send("You Have Already Voted")
+            except Exception as e:
+                print(e)
+        else:
+            await ctx.send("Please wait for the bot to finish it's current task")
     else:
         await ctx.send("You must tag a user or enter their full id to vote for them")
         return False

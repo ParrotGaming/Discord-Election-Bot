@@ -204,6 +204,28 @@ def end_election():
 
   if len(results) <= 2:
     return(results[0][1] + " has won the election")
+  
+  elif len(results) > 5:
+    print("5 o mo")
+    count = 0
+    for result in results:
+      if count < 5:
+        count += 1
+        print(count)
+        runoff_candidates.append(result[0])
+
+    for i in range(len(runoff_candidates)):
+      runoff_candidatesS += runoff_candidates[i] + "\n\n"
+    
+    cursor.execute("DELETE FROM candidates WHERE user_id NOT IN " + (str(runoff_candidates).replace('[', '(').replace(']', ')')) + ";")
+    
+    cursor.execute("UPDATE candidates SET votes = 0")
+
+    cursor.execute("DELETE FROM voters")
+    conn.commit()
+
+    return runoff_candidatesS
+  
   else:
     for result in results:
       index += 1
