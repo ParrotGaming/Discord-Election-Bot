@@ -147,16 +147,21 @@ def vote(author_id,candidate_id):
   cursor.execute("SELECT * FROM voters WHERE user_id=%s;",(str(author_id),))
   result = cursor.fetchone()
   if result == None:
-    cursor.execute("INSERT INTO voters VALUES (%s, %s); ",(str(author_id),str(candidate_id),))
-    cursor.execute("SELECT votes FROM candidates WHERE user_id=%s;",(str(candidate_id),))
-    votes_old = cursor.fetchone()
-    votes_new = votes_old[0] +1
-    cursor.execute("UPDATE candidates SET votes=%s WHERE user_id=%s;",(votes_new,str(candidate_id),))
-    conn.commit()
-    
-    cursor.close()
-    conn.close()
-    return True
+    cursor.execute("SELECT * FROM candidates WHERE user_id=%s;",(str(candidate_id),))
+    result = cursor.fetchone()
+    if result != None:
+      cursor.execute("INSERT INTO voters VALUES (%s, %s); ",(str(author_id),str(candidate_id),))
+      cursor.execute("SELECT votes FROM candidates WHERE user_id=%s;",(str(candidate_id),))
+      votes_old = cursor.fetchone()
+      votes_new = votes_old[0] +1
+      cursor.execute("UPDATE candidates SET votes=%s WHERE user_id=%s;",(votes_new,str(candidate_id),))
+      conn.commit()
+      
+      cursor.close()
+      conn.close()
+      return True
+    else:
+      return "null"
   else:
     cursor.close()
     conn.close()
@@ -243,10 +248,11 @@ def end_election():
 
     print(str(runoff_candidates).replace('[', '(').replace(']', ')'))
     
-    # wild card not working for some reason
-    # cursor.execute("DELETE FROM candidates WHERE user_id NOT IN (%s)", runoff_candidates)
-
-    cursor.execute("DELETE FROM candidates WHERE user_id NOT IN " + (str(runoff_candidates).replace('[', '(').replace(']', ')')) + ";")
+    wildcard_string = "(" + ", ".join(["%s"]*len(runoff_candidates)) + ")"
+    
+    print(wildcard_string)
+    
+    cursor.execute("DELETE FROM candidates WHERE user_id NOT IN " + wildcard_string, runoff_candidates)
     
     cursor.execute("UPDATE candidates SET votes = 0")
 

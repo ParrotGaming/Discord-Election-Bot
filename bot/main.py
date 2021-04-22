@@ -55,29 +55,13 @@ def get_random_unicode(length):
     ]
     return ''.join(random.choice(alphabet) for i in range(length))
 
-names= get_statuses()
+names = get_statuses()
 
 @client.event
 async def on_ready():
     from random import randrange
     await client.change_presence(status=discord.Status.online, activity=discord.Game(names[randrange(len(names))][0]))
     print('Logged on as', client.user)
-
-@client.command()
-async def name(ctx):
-    from random import randrange
-    await client.change_presence(status=discord.Status.online, activity=discord.Game(names[randrange(len(names))][0]))
-
-@client.command()
-async def ping(ctx):
-    await ctx.send("Online, Current Latency is " + str(round(client.latency * 1000)) + "ms")
-
-@client.command()
-async def nordic(ctx):
-    await ctx.message.author.add_roles(discord.utils.get(ctx.message.guild.roles, name="nordic"))
-    async for x in ctx.message.channel.history(limit = 1):
-        await x.delete()
-    await client.get_channel(832375391401279488).send(get_random_unicode(2000))
 
 async def update_candidates(add_override):
     global cmd_running
@@ -96,6 +80,7 @@ async def update_candidates(add_override):
         print("Message Count: " + str(msg_count))
         if msg_count != 0 and add_override == False:
             async for x in channel.history(limit = 1):
+                cmd_running = True
                 if counter < 100:
                     await x.delete()
                     counter += 1
@@ -103,6 +88,7 @@ async def update_candidates(add_override):
             
             createCandidateGraph()
             await channel.send(file=discord.File('output.png'))
+            cmd_running = False
         else:
             async for x in channel.history(limit = 100):
                 cmd_running = True
@@ -130,112 +116,149 @@ async def update_candidates(add_override):
 
         await channel.send("No candidates found")
 
-@client.command()
-async def cast(ctx, member: discord.Member = None):
-    global cmd_running
-    if member != None:
-        if cmd_running == False:
+class AdminCommands(commands.Cog):
+    """Commands that can only be run by admins"""
+    
+    @commands.command(pass_context=True)
+    @has_permissions(ban_members=True)
+    async def reset(self, ctx):
+        """Resets the database and election chart | Usage: !vote reset"""
+        
+        try:
+            reset_db()
+            channel = ""
+            if environment == "development":
+                channel = client.get_channel(832327717970116679)
+            elif environment == "production":
+                channel = client.get_channel(832337414772621363)
+            counter = 0
+            async for x in channel.history(limit = 100):
+                if counter < 100:
+                    await x.delete()
+                    counter += 1
+                    await asyncio.sleep(0.5)
+        except Exception as e:
+            print(e)
+        await ctx.send("Election Reset")
+
+    @reset.error
+    async def reset_error(self, ctx, error):
+        if isinstance(error, MissingPermissions):
+            text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
+            await ctx.send(text)
+    
+    @commands.command(pass_context=True)
+    @has_permissions(ban_members=True)
+    async def add(self, ctx, member: discord.Member = None, name = None, *args):
+        """Adds a user to the roster | Usage: !vote add @user, user's_name, user's_proposed_server_name"""
+        
+        if member != None:
             try:
-                if vote(ctx.message.author, member):
-                    cmd_running = True
-                    await update_candidates(add_override = False)
-                    await ctx.send("Vote Cast")
-                    cmd_running = False
+                gc_name = " ".join(args[:])
+                if ctx.message.attachments:
+                    image = ctx.message.attachments[0].url
+                    addCandidate(member, name, gc_name, image)
+                    await update_candidates(add_override = True)
                 else:
-                    await ctx.send("You Have Already Voted")
+                    await ctx.send("You must attach an image to this message")
+                    return False
             except Exception as e:
                 print(e)
         else:
-            await ctx.send("Please wait for the bot to finish it's current task")
-    else:
-        await ctx.send("You must tag a user or enter their full id to vote for them")
-        return False
+            await ctx.send("You must tag a user or enter their full id to add them as a candidate")
+            return False
+        await ctx.send("User Added")
 
-@client.command()
-@has_permissions(ban_members=True)
-async def reset(ctx):
-    try:
-        reset_db()
-        channel = ""
-        if environment == "development":
-            channel = client.get_channel(832327717970116679)
-        elif environment == "production":
-            channel = client.get_channel(832337414772621363)
-        counter = 0
-        async for x in channel.history(limit = 100):
-            if counter < 100:
-                await x.delete()
-                counter += 1
-                await asyncio.sleep(0.5)
-    except Exception as e:
-        print(e)
-    await ctx.send("Election Reset")
-
-@reset.error
-async def reset_error(ctx, error):
-    if isinstance(error, MissingPermissions):
-        text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
-        await ctx.send(text)
-
-@client.command()
-@has_permissions(ban_members=True)
-async def add(ctx, member: discord.Member = None, name = None, *args):
-    if member != None:
-        try:
-            gc_name = " ".join(args[:])
-            if ctx.message.attachments:
-                image = ctx.message.attachments[0].url
-                addCandidate(member, name, gc_name, image)
+    @add.error
+    async def add_error(self, ctx, error):
+        if isinstance(error, MissingPermissions):
+            text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
+            await ctx.send(text)
+    
+    @commands.command(pass_context=True)
+    @has_permissions(ban_members=True)
+    async def remove(self, ctx, member: discord.Member = None):
+        """Removes a user from the roster | Usage: !vote remove @user"""
+        if member != None:
+            try:
+                removeCandidate(member)
                 await update_candidates(add_override = True)
-            else:
-                await ctx.send("You must attach an image to this message")
-                return False
-        except Exception as e:
-            print(e)
-    else:
-        await ctx.send("You must tag a user or enter their full id to add them as a candidate")
-        return False
-    await ctx.send("User Added")
+            except Exception as e:
+                print(e)
+        else:
+            await ctx.send("You must tag a user or enter their full id to remove them as a candidate")
+            return False
+        await ctx.send("User Removed")
 
-@add.error
-async def add_error(ctx, error):
-    if isinstance(error, MissingPermissions):
-        text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
-        await ctx.send(text)
-
-@client.command()
-@has_permissions(ban_members=True)
-async def remove(ctx, member: discord.Member = None):
-    if member != None:
+    @remove.error
+    async def remove_error(self, ctx, error):
+        if isinstance(error, MissingPermissions):
+            text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
+            await ctx.send(text)
+    
+    @commands.command(pass_context=True)
+    @has_permissions(ban_members=True)
+    async def call(self, ctx):
+        """Ends the current runoff/primary and automatically determines a winner/winners | Usage: !vote call"""
         try:
-            removeCandidate(member)
+            await ctx.send(end_election())
             await update_candidates(add_override = True)
         except Exception as e:
             print(e)
-    else:
-        await ctx.send("You must tag a user or enter their full id to remove them as a candidate")
-        return False
-    await ctx.send("User Removed")
 
-@remove.error
-async def remove_error(ctx, error):
-    if isinstance(error, MissingPermissions):
-        text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
-        await ctx.send(text)
+    @call.error
+    async def call_error(self, ctx, error):
+        if isinstance(error, MissingPermissions):
+            text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
+            await ctx.send(text)
 
-@client.command()
-@has_permissions(ban_members=True)
-async def call(ctx):
-    try:
-        await ctx.send(end_election())
-        await update_candidates(add_override = True)
-    except Exception as e:
-        print(e)
+class VoterCommands(commands.Cog):
+    @commands.command(pass_context=True)
+    async def cast(self, ctx, member: discord.Member = None):
+        """Counts your vote for the candidate you ping | Usage: !vote cast @user"""
+        global cmd_running
+        if member != None:
+            if cmd_running == False:
+                try:
+                    if vote(ctx.message.author, member) == True:
+                        cmd_running = True
+                        await update_candidates(add_override = False)
+                        await ctx.send("Vote Cast")
+                        cmd_running = False
+                    elif vote(ctx.message.author, member) == "null":
+                        await ctx.send("404 Candidate not found")
+                    else:
+                        await ctx.send("You Have Already Voted")
+                except Exception as e:
+                    print(e)
+            else:
+                await ctx.message.author.send("Please wait for the bot to finish its current task and try again")
+        else:
+            await ctx.send("You must tag a user or enter their full id to vote for them")
+            return False
 
-@call.error
-async def call_error(ctx, error):
-    if isinstance(error, MissingPermissions):
-        text = "Sorry {}, you do not have permissions to do that!".format(ctx.message.author)
-        await ctx.send(text)
+class SpecialCommands(commands.Cog):
+    @commands.command(pass_context=True)
+    async def ping(self, ctx):
+        """Returns the current latency of the bot | Usage: !vote ping"""
+        await ctx.send("Online, Current Latency is " + str(round(client.latency * 1000)) + "ms")
+
+    @commands.command()
+    async def name(self, ctx):
+        """Randomly selects a string from a list and sets that as the bot's status | Usage: !vote name"""
+        from random import randrange
+        await client.change_presence(status=discord.Status.online, activity=discord.Game(names[randrange(len(names))][0]))
+    
+    @commands.command()
+    async def nordic(self, ctx):
+        """[REDACTED]"""
+        await ctx.message.author.add_roles(discord.utils.get(ctx.message.guild.roles, name="nordic"))
+        async for x in ctx.message.channel.history(limit = 1):
+            await x.delete()
+        await client.get_channel(832375391401279488).send(get_random_unicode(2000))
+
+client.add_cog(AdminCommands())
+client.add_cog(VoterCommands())
+client.add_cog(SpecialCommands())
 
 client.run(token)
