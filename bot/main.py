@@ -218,21 +218,24 @@ class VoterCommands(commands.Cog):
         """Counts your vote for the candidate you ping | Usage: !vote cast @user"""
         global cmd_running
         if member != None:
-            if cmd_running == False:
-                try:
-                    if vote(ctx.message.author, member) == True:
-                        cmd_running = True
-                        await update_candidates(add_override = False)
-                        await ctx.send("Vote Cast")
-                        cmd_running = False
-                    elif vote(ctx.message.author, member) == "null":
-                        await ctx.send("404 Candidate not found")
-                    else:
-                        await ctx.send("You Have Already Voted")
-                except Exception as e:
-                    print(e)
+            if ctx.message.author.id != member.id:
+                if cmd_running == False:
+                    try:
+                        if vote(ctx.message.author, member) == True:
+                            cmd_running = True
+                            await update_candidates(add_override = False)
+                            await ctx.send("Vote Cast")
+                            cmd_running = False
+                        elif vote(ctx.message.author, member) == "null":
+                            await ctx.send("404 Candidate not found")
+                        else:
+                            await ctx.send("You Have Already Voted")
+                    except Exception as e:
+                        print(e)
+                else:
+                    await ctx.message.author.send("Please wait for the bot to finish its current task and try again")
             else:
-                await ctx.message.author.send("Please wait for the bot to finish its current task and try again")
+                await ctx.send("bruh")
         else:
             await ctx.send("You must tag a user or enter their full id to vote for them")
             return False
