@@ -248,10 +248,11 @@ def end_election():
 
     print(str(runoff_candidates).replace('[', '(').replace(']', ')'))
     
-    # wild card not working for some reason
-    # cursor.execute("DELETE FROM candidates WHERE user_id NOT IN (%s)", runoff_candidates)
-
-    cursor.execute("DELETE FROM candidates WHERE user_id NOT IN " + (str(runoff_candidates).replace('[', '(').replace(']', ')')) + ";")
+    wildcard_string = "(" + ", ".join(["%s"]*len(runoff_candidates)) + ")"
+    
+    print(wildcard_string)
+    
+    cursor.execute("DELETE FROM candidates WHERE user_id NOT IN " + wildcard_string, runoff_candidates)
     
     cursor.execute("UPDATE candidates SET votes = 0")
 
