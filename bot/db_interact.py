@@ -211,13 +211,12 @@ def end_election():
     return(results[0][1] + " has won the election")
   
   elif len(results) > 5:
-    print("5 o mo")
     count = 0
     for result in results:
-      if count < 5:
-        count += 1
-        print(count)
-        runoff_candidates.append(result[0])
+      if result[3] != 0:
+        if count < 5:
+          count += 1
+          runoff_candidates.append(result[0])
 
     for i in range(len(runoff_candidates)):
       runoff_candidatesS += runoff_candidates[i] + "\n\n"
